@@ -116,7 +116,7 @@ typedef struct Options {
         float width, height;
     } window_logo_scale;
 
-    bool dynamic_background_opacity;
+    bool dynamic_background_opacity, background_opacity_all_colors;
     float inactive_text_alpha;
     Edge tab_bar_edge;
     int tab_title_max_length;

@@ -62,6 +62,7 @@ option_names = (
     'background_image_layout',
     'background_image_linear',
     'background_opacity',
+    'background_opacity_all_colors',
     'background_tint',
     'background_tint_gaps',
     'bell_border_color',
@@ -547,6 +548,7 @@ class Options:
     background_image_layout: choices_for_background_image_layout = 'tiled'
     background_image_linear: bool = False
     background_opacity: float = 1.0
+    background_opacity_all_colors: bool = False
     background_tint: float = 0
     background_tint_gaps: float = 1.0
     bell_border_color: Color = Color(255, 90, 0)

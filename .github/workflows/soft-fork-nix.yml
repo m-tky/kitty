@@ -1,0 +1,29 @@
+name: Soft fork Nix
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soft-fork-nix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nix:
+    name: Nix package and regression tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+      - name: Test update tooling
+        run: python3 -m unittest discover -s nix/tests -v
+      - name: Evaluate both Linux architectures
+        run: nix flake check --all-systems --no-build
+      - name: Build and test the package
+        run: nix build --no-link -L .#checks.x86_64-linux.package

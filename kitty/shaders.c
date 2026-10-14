@@ -953,6 +953,7 @@ cell_update_uniform_block(
         GLuint cursor_x1, cursor_x2, cursor_y1, cursor_y2;
         GLfloat cursor_opacity, inactive_text_alpha, fg_override_threshold, row_offset, dim_opacity, blink_opacity;
 
+        GLuint background_opacity_all_colors;
         GLuint bg_colors0, bg_colors1, bg_colors2, bg_colors3, bg_colors4, bg_colors5, bg_colors6, bg_colors7;
         GLfloat bg_opacities0, bg_opacities1, bg_opacities2, bg_opacities3, bg_opacities4, bg_opacities5, bg_opacities6, bg_opacities7;
     };
@@ -988,6 +989,7 @@ cell_update_uniform_block(
     rd->main_cursor_is_special = IS_SPECIAL_COLOR(cursor_color);
     rd->bg_colors0 = COLOR(default_bg);
     rd->bg_opacities0 = bg_alpha;
+    rd->background_opacity_all_colors = OPT(background_opacity_all_colors);
     rd->fg_override_threshold = OPT(text_fg_override_threshold);
     rd->row_offset = row_offset_for_screen(screen);
 #define SETBG(which) \

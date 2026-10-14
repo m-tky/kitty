@@ -38,6 +38,28 @@ class TestConfParsing(BaseTest):
     def test_font_size_clamping(self):
         font_size_clamping(self)
 
+    def test_background_opacity_all_colors(self):
+        from kitty.config import load_config
+        from kitty.fast_data_types import set_options
+        from kitty.options.types import defaults
+
+        self.assertFalse(defaults.background_opacity_all_colors)
+        for value, expected in (('yes', True), ('no', False)):
+            bad_lines = []
+            opts = load_config(
+                overrides=(
+                    'background_opacity 0.4',
+                    f'background_opacity_all_colors {value}',
+                    'transparent_background_colors red@0.8',
+                ),
+                accumulate_bad_lines=bad_lines,
+            )
+            self.assertFalse(bad_lines)
+            self.ae(opts.background_opacity_all_colors, expected)
+            self.ae(opts.background_opacity, 0.4)
+            # Also exercise the generated Python-to-C converter.
+            set_options(opts)
+
     def test_session_launch_option_expansion(self) -> None:
         from kitty.launch import LaunchSpec
         from kitty.options.types import defaults

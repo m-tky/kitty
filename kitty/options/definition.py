@@ -2584,7 +2584,8 @@ theme with a background color in your editor, it will not be rendered as
 transparent. Instead you should change the default background color in your
 kitty config and not use a background color in the editor color scheme. Or use
 the escape codes to set the terminals default colors in a shell script to
-launch your editor. See also :opt:`transparent_background_colors`.
+launch your editor. See also :opt:`transparent_background_colors` and
+:opt:`background_opacity_all_colors`.
 Be aware that using a value less than 1.0 is a (possibly
 significant) performance hit. When using a low value for this setting, it is
 desirable that you set the :opt:`background` color to a color the matches the
@@ -2598,6 +2599,28 @@ If you want to dynamically change transparency of windows, set
 has a performance cost). Changing this option when reloading the config will
 only work if :opt:`dynamic_background_opacity` was enabled in the original
 config.
+""",
+)
+
+opt(
+    'background_opacity_all_colors',
+    'no',
+    option_type='to_bool',
+    ctype='bool',
+    long_text="""
+Apply :opt:`background_opacity` to all cell background colors, including
+indexed colors, true colors and reverse video backgrounds, without a color
+count limit. The colors are preserved and alpha-composited with whatever is
+behind the OS window. Text, decorations and graphics retain their usual opacity
+and anti-aliasing. Selection highlights and cursors retain their usual behavior.
+
+When enabled, this overrides :opt:`transparent_background_colors`, including
+colors set by terminal applications. When disabled, the usual background
+opacity and transparent color matching behavior is unchanged.
+
+Requires OS/compositor transparency support and :opt:`background_opacity`
+less than one (or :opt:`dynamic_background_opacity` enabled at startup before
+reducing the opacity). This does not change the opacity of :opt:`background_image`.
 """,
 )
 
@@ -2637,6 +2660,7 @@ part is optional. When unspecified, the value of :opt:`background_opacity` is us
     transparent_background_colors red@0.5 #00ff00@0.3
 
 Note that you must also set :opt:`background_opacity` to something less than 1 for this setting to work properly.
+This setting is ignored when :opt:`background_opacity_all_colors` is enabled.
 """,
 )
 

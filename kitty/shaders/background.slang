@@ -36,6 +36,8 @@ public struct CellRenderData {
     public uint cursor_x1, cursor_x2, cursor_y1, cursor_y2;
     public float cursor_opacity, inactive_text_alpha, fg_override_threshold, row_offset, dim_opacity, blink_opacity;
 
+    public uint background_opacity_all_colors;
+
     // must have unique entries with 0 being default_bg and unset being UINT32_MAX
     public uint bg_colors0, bg_colors1, bg_colors2, bg_colors3, bg_colors4, bg_colors5, bg_colors6, bg_colors7;
     public float bg_opacities0, bg_opacities1, bg_opacities2, bg_opacities3, bg_opacities4, bg_opacities5, bg_opacities6, bg_opacities7;
@@ -207,6 +209,7 @@ background_opacity_for(uint bg, uint colorval, float opacity_if_matched) {
 
 float
 calc_background_opacity(uint bg) {
+    if (crd.background_opacity_all_colors != 0u) return crd.bg_opacities0;
     return (
         background_opacity_for(bg, crd.bg_colors0, crd.bg_opacities0) * background_opacity_for(bg, crd.bg_colors1, crd.bg_opacities1) *
         background_opacity_for(bg, crd.bg_colors2, crd.bg_opacities2) * background_opacity_for(bg, crd.bg_colors3, crd.bg_opacities3) *
@@ -324,7 +327,8 @@ compute_background(uint3 colors, uint2 sprite_idx, uint is_selected, uint instan
     float effective_cursor_opacity = max(crd.cursor_opacity, bg_alpha);
     // is_special_cell is either 0 or 1
     float is_special_cell = cell_data.has_block_cursor + float(is_selected & BIT_MASK);
-    is_special_cell += float(is_reversed); // reverse video cells should be opaque as well
+    // Reverse video is an application background too in all-colors mode.
+    is_special_cell += float(is_reversed) * float(crd.background_opacity_all_colors == 0u);
     is_special_cell = zero_or_one(is_special_cell);
     cell_has_default_bg = if_one_then(is_special_cell, 0., cell_has_default_bg);
 

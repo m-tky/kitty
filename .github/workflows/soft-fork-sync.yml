@@ -1,0 +1,89 @@
+name: Soft fork weekly upstream sync
+
+on:
+  schedule:
+    - cron: '15 3 * * 1' # Monday 03:15 UTC / 12:15 JST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: soft-fork-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository != 'kovidgoyal/kitty'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      BASE_BRANCH: ${{ github.event.repository.default_branch }}
+      SYNC_BRANCH: automation/upstream-sync
+      GIT_AUTHOR_NAME: kitty-soft-fork-bot
+      GIT_AUTHOR_EMAIL: kitty-soft-fork-bot@users.noreply.github.com
+      GIT_COMMITTER_NAME: kitty-soft-fork-bot
+      GIT_COMMITTER_EMAIL: kitty-soft-fork-bot@users.noreply.github.com
+    steps:
+      - name: Require a token that can trigger PR checks
+        env:
+          SYNC_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+        run: |
+          if [ -z "$SYNC_TOKEN" ]; then
+            echo 'Set UPSTREAM_SYNC_TOKEN: contents, pull requests, and workflows write permissions.' >&2
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7 # v31
+      - name: Require gated auto-merge configuration
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          test "$(gh api "repos/$GH_REPO" --jq '.allow_auto_merge')" = true
+          encoded="$(python3 -c 'import os, urllib.parse; print(urllib.parse.quote(os.environ["BASE_BRANCH"], safe=""))')"
+          required="$(gh api "repos/$GH_REPO/branches/$encoded/protection/required_status_checks" \
+            --jq '[.contexts[], .checks[].context] | unique | .[]')"
+          echo "$required" | grep -Fx 'Nix package and regression tests'
+      - name: Merge upstream into the dedicated update branch
+        run: bash nix/sync-upstream.sh
+      - name: Update the pinned build dependencies
+        run: |
+          nix flake update nixpkgs
+          python3 nix/update-go-deps.py
+          git add flake.lock nix/go-deps-hash.nix
+          if ! git diff --cached --quiet; then
+            git commit -m 'build(nix): refresh pinned dependencies after upstream sync'
+          fi
+      - name: Test update tooling
+        run: python3 -m unittest discover -s nix/tests -v
+      - name: Validate the candidate before publishing
+        run: |
+          nix flake check --all-systems --no-build
+          nix build --no-link -L .#checks.x86_64-linux.package
+          test -z "$(git status --porcelain)"
+      - name: Publish a PR and request gated auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_SYNC_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if git diff --quiet "origin/$BASE_BRANCH" HEAD && \
+             git merge-base --is-ancestor HEAD "origin/$BASE_BRANCH"; then
+            echo 'No update required.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Ordinary push only: never rewrite either branch on the server.
+          git push origin "HEAD:refs/heads/$SYNC_BRANCH"
+          pr="$(gh pr list --state open --base "$BASE_BRANCH" --head "$SYNC_BRANCH" --json number --jq '.[0].number // empty')"
+          if [ -z "$pr" ]; then
+            gh pr create --base "$BASE_BRANCH" --head "$SYNC_BRANCH" \
+              --title 'chore: weekly kitty upstream and Nix dependency sync' \
+              --body 'Merges upstream/master while retaining the soft-fork changes. Refreshes the locked Nixpkgs input and Go vendor hash. The candidate was built and regression-tested before publishing; required PR checks must also pass before auto-merge.'
+            pr="$(gh pr list --state open --base "$BASE_BRANCH" --head "$SYNC_BRANCH" --json number --jq '.[0].number')"
+          fi
+          gh pr merge "$pr" --auto --merge
+          echo "Update PR #$pr published; auto-merge requested." >> "$GITHUB_STEP_SUMMARY"

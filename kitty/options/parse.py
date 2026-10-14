@@ -98,6 +98,9 @@ class Parser:
     def background_opacity(self, val: str, ans: dict[str, typing.Any]) -> None:
         ans['background_opacity'] = unit_float(val)
 
+    def background_opacity_all_colors(self, val: str, ans: dict[str, typing.Any]) -> None:
+        ans['background_opacity_all_colors'] = to_bool(val)
+
     def background_tint(self, val: str, ans: dict[str, typing.Any]) -> None:
         ans['background_tint'] = unit_float(val)
 
